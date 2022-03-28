@@ -1,0 +1,12 @@
+{
+    "name": "socket-io-theorem",
+    "version": "0.0.1",
+    "description": "socket.io app for Theorem",
+    "dependencies": {
+        "express": "^4.17.3",
+        "socket.io": "^4.4.1"
+    },
+    "devDependencies": {
+        "@types/node": "^17.0.23"
+    }
+}
