@@ -6,6 +6,7 @@ export class GameRoom {
     _status: GameStatus;
   
     constructor() {
+      this._gameroomId = "unset";
       this._player1 = "unset";
       this._player2 = "unset";
       this._status = GameStatus.waiting;
