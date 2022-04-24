@@ -67,8 +67,9 @@ server.listen(3000, () => {
 io.on("connection", (socket: Socket) => {
   console.log(socket.id);
 
-  if(freeGameRooms.length = 0 ) {
+  if(freeGameRooms.length == 0 ) {
     let gameRoom = new GameRoom();
+    gameRoom.gameroomId = generateGameRoomID();
     gameRoom.player1 = socket.id;
     gameRooms.set(gameRoom.gameroomId, gameRoom);
     freeGameRooms.push(gameRoom.gameroomId);

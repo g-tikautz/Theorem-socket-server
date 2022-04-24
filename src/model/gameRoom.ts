@@ -39,6 +39,10 @@ export class GameRoom {
     set status(status: GameStatus) {
       this._status = status;
     }
+
+    set gameroomId(id: string) {
+        this._gameroomId = id;
+    }
   
     get isFull(): boolean {
       return this._player1 !== "unset" && this._player2 !== "unset";
