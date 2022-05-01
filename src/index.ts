@@ -76,15 +76,12 @@ io.on("connection", (socket: Socket) => {
     gameRooms.set(gameRoom.gameroomId, gameRoom);
     freeGameRooms.push(gameRoom.gameroomId);
     socket.emit("gameRoomID", gameRoom.gameroomId);
-    console.log("created new game room");
   } else {
-    console.log("found free game room");
     let gameRoom = gameRooms.get(freeGameRooms.splice(0, 1)[0]);
     gameRoom!.player2 = socket.id;
     gameRoom!.status = GameStatus.playing;
     socket.emit("gameRoomID", gameRoom!.gameroomId);
     let random_boolean = Math.random() < 0.5;
-    console.log(random_boolean);
     io.sockets.sockets
       .get(gameRoom!.player1)
       ?.emit("startGame", random_boolean);
@@ -96,7 +93,6 @@ io.on("connection", (socket: Socket) => {
   socket.on(
     "enemyAttackableStateChange",
     (roomId: string, attackable: boolean) => {
-      console.log("attackable" + attackable);
       if (gameRooms.get(roomId)!.player1 == socket.id) {
         io.sockets.sockets
           .get(gameRooms.get(roomId)!.player2)
@@ -121,9 +117,44 @@ io.on("connection", (socket: Socket) => {
     }
   });
 
-  socket.on("playerPlaysCard", (data) => {
-    console.log(data);
+  socket.on("playerPlaysCard", (roomId: string, data) => {
+    if (gameRooms.get(roomId)!.player1 == socket.id) {
+      io.sockets.sockets
+        .get(gameRooms.get(roomId)!.player2)
+        ?.emit("playerPlaysCard",data);
+        
+    } else {
+      io.sockets.sockets
+        .get(gameRooms.get(roomId)!.player1)
+        ?.emit("playerPlaysCard",data);
+        
+    }
   });
+
+  socket.on("playerEndedTurn",(roomId:string)=>{
+    if (gameRooms.get(roomId)!.player1 == socket.id) {
+      io.sockets.sockets
+        .get(gameRooms.get(roomId)!.player2)
+        ?.emit("playerEndedTurn");
+    } else {
+      io.sockets.sockets
+        .get(gameRooms.get(roomId)!.player1)
+        ?.emit("playerEndedTurn");
+    }
+  })
+
+  socket.on("playerAttacks", (roomId: string, attackingCards:number[],attackedCard:number[], attackingUserCards:number[]) => {
+    console.log(attackingCards,attackedCard,attackingUserCards);
+    if (gameRooms.get(roomId)!.player1 == socket.id) {
+      io.sockets.sockets
+        .get(gameRooms.get(roomId)!.player2)
+        ?.emit("playerAttacks", attackingCards, attackedCard, attackingUserCards);
+    } else {
+      io.sockets.sockets
+        .get(gameRooms.get(roomId)!.player1)
+        ?.emit("playerAttacks", attackingCards, attackedCard, attackingUserCards);
+    }
+   });
 
   socket.on("disconnect", () => {
     console.log("user disconnected");
