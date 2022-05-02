@@ -121,17 +121,15 @@ io.on("connection", (socket: Socket) => {
     if (gameRooms.get(roomId)!.player1 == socket.id) {
       io.sockets.sockets
         .get(gameRooms.get(roomId)!.player2)
-        ?.emit("playerPlaysCard",data);
-        
+        ?.emit("playerPlaysCard", data);
     } else {
       io.sockets.sockets
         .get(gameRooms.get(roomId)!.player1)
-        ?.emit("playerPlaysCard",data);
-        
+        ?.emit("playerPlaysCard", data);
     }
   });
 
-  socket.on("playerEndedTurn",(roomId:string)=>{
+  socket.on("playerEndedTurn", (roomId: string) => {
     if (gameRooms.get(roomId)!.player1 == socket.id) {
       io.sockets.sockets
         .get(gameRooms.get(roomId)!.player2)
@@ -141,20 +139,38 @@ io.on("connection", (socket: Socket) => {
         .get(gameRooms.get(roomId)!.player1)
         ?.emit("playerEndedTurn");
     }
-  })
+  });
 
-  socket.on("playerAttacks", (roomId: string, attackingCards:number[],attackedCard:number[], attackingUserCards:number[]) => {
-    console.log(attackingCards,attackedCard,attackingUserCards);
-    if (gameRooms.get(roomId)!.player1 == socket.id) {
-      io.sockets.sockets
-        .get(gameRooms.get(roomId)!.player2)
-        ?.emit("playerAttacks", attackingCards, attackedCard, attackingUserCards);
-    } else {
-      io.sockets.sockets
-        .get(gameRooms.get(roomId)!.player1)
-        ?.emit("playerAttacks", attackingCards, attackedCard, attackingUserCards);
+  socket.on(
+    "playerAttacks",
+    (
+      roomId: string,
+      attackingCards: number[],
+      attackedCard: number[],
+      attackingUserCards: number[]
+    ) => {
+      console.log(attackingCards, attackedCard, attackingUserCards);
+      if (gameRooms.get(roomId)!.player1 == socket.id) {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player2)
+          ?.emit(
+            "playerAttacks",
+            attackingCards,
+            attackedCard,
+            attackingUserCards
+          );
+      } else {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player1)
+          ?.emit(
+            "playerAttacks",
+            attackingCards,
+            attackedCard,
+            attackingUserCards
+          );
+      }
     }
-   });
+  );
 
   socket.on("disconnect", () => {
     console.log("user disconnected");
