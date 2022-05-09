@@ -72,6 +72,7 @@ let isPrivate: string | string[] | undefined = undefined;
 io.use((socket, next) => {
   roomId = socket.handshake.query.roomId;
   isPrivate = socket.handshake.query.isPrivate;
+  console.log("roomId");
   if (socket.handshake.query.token === "UNITY") {
     next();
   } else {
@@ -336,16 +337,18 @@ function normalSearch(socket: Socket) {
     socket.emit("gameRoomID", gameRoom.gameroomId);
   } else {
     let gameRoom = gameRooms.get(freeGameRooms.splice(0, 1)[0]);
-    gameRoom!.player2 = socket.id;
-    gameRoom!.status = GameStatus.playing;
-    socket.emit("gameRoomID", gameRoom!.gameroomId);
-    let random_boolean = Math.random() < 0.5;
-    io.sockets.sockets
-      .get(gameRoom!.player1)
-      ?.emit("startGame", random_boolean);
-    io.sockets.sockets
-      .get(gameRoom!.player2)
-      ?.emit("startGame", !random_boolean);
+    if (gameRoom) {
+      gameRoom!.player2 = socket.id;
+      gameRoom!.status = GameStatus.playing;
+      socket.emit("gameRoomID", gameRoom!.gameroomId);
+      let random_boolean = Math.random() < 0.5;
+      io.sockets.sockets
+        .get(gameRoom!.player1)
+        ?.emit("startGame", random_boolean);
+      io.sockets.sockets
+        .get(gameRoom!.player2)
+        ?.emit("startGame", !random_boolean);
+    }
   }
 }
 
