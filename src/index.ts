@@ -66,56 +66,111 @@ server.listen(3000, () => {
   console.log("listening on *:3000");
 });
 
-let roomId:string | string[] | undefined = undefined;
-let isPrivate:string | string[] | undefined = undefined;
+let roomId: string | string[] | undefined = undefined;
+let isPrivate: string | string[] | undefined = undefined;
 
 io.use((socket, next) => {
   roomId = socket.handshake.query.roomId;
   isPrivate = socket.handshake.query.isPrivate;
   if (socket.handshake.query.token === "UNITY") {
-      next();
+    next();
   } else {
-      next(new Error("Authentication error"));
+    next(new Error("Authentication error"));
   }
 });
 
 io.on("connection", (socket: Socket) => {
-console.log(roomId);
-console.log(isPrivate);
- if(roomId){
+  console.log(roomId);
+  console.log(isPrivate);
+  if (roomId) {
     joinGameRoom(socket, roomId as string);
- }else{
-   if(isPrivate){
-     createPrivateRoom(socket);
-   }else{
-    normalSearch(socket);
-   }
- }
-
- socket.on("showCardsFighting",(roomId: string,x:number,y:number,z:number,dies:boolean,attackDamage:number,defenseDamage:number,effects:number[],x2:number,y2:number,z2:number,dies2:boolean,attackDamage2:number,defenseDamage2:number,effects2:number[]) => {   
-  if(gameRooms.get(roomId)!.player1 == socket.id){
-    io.sockets.sockets
-    .get(gameRooms.get(roomId)!.player2)
-      ?.emit("enemyAttackableStateChange", roomId,x,y,z,dies,attackDamage,defenseDamage,effects,x2,y2,z2,dies2,attackDamage2,defenseDamage2,effects2);
-  }else{
-    io.sockets.sockets
-    .get(gameRooms.get(roomId)!.player1)
-      ?.emit("enemyAttackableStateChange", roomId,x,y,z,dies,attackDamage,defenseDamage,effects,x2,y2,z2,dies2,attackDamage2,defenseDamage2,effects2);
-  }
- });
-
- socket.on("showUserAttack",(roomId: string,x: number,y:number,z:number,value:number)=>{
-    
-    if(gameRooms.get(roomId)!.player1 == socket.id){
-        io.sockets.sockets
-        .get(gameRooms.get(roomId)!.player2)
-          ?.emit("enemyAttackableStateChange", x,y,z,value);
-    }else{
-        io.sockets.sockets
-        .get(gameRooms.get(roomId)!.player1)
-          ?.emit("enemyAttackableStateChange", x,y,z,value);
+  } else {
+    if (isPrivate) {
+      createPrivateRoom(socket);
+    } else {
+      normalSearch(socket);
     }
- });
+  }
+
+  socket.on(
+    "showCardsFighting",
+    (
+      roomId: string,
+      x: number,
+      y: number,
+      z: number,
+      dies: boolean,
+      attackDamage: number,
+      defenseDamage: number,
+      effects: number[],
+      x2: number,
+      y2: number,
+      z2: number,
+      dies2: boolean,
+      attackDamage2: number,
+      defenseDamage2: number,
+      effects2: number[]
+    ) => {
+      if (gameRooms.get(roomId)!.player1 == socket.id) {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player2)
+          ?.emit(
+            "enemyAttackableStateChange",
+            roomId,
+            x,
+            y,
+            z,
+            dies,
+            attackDamage,
+            defenseDamage,
+            effects,
+            x2,
+            y2,
+            z2,
+            dies2,
+            attackDamage2,
+            defenseDamage2,
+            effects2
+          );
+      } else {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player1)
+          ?.emit(
+            "enemyAttackableStateChange",
+            roomId,
+            x,
+            y,
+            z,
+            dies,
+            attackDamage,
+            defenseDamage,
+            effects,
+            x2,
+            y2,
+            z2,
+            dies2,
+            attackDamage2,
+            defenseDamage2,
+            effects2
+          );
+      }
+    }
+  );
+
+  socket.on(
+    "showUserAttack",
+    (roomId: string, x: number, y: number, z: number, value: number) => {
+      if (gameRooms.get(roomId)!.player1 == socket.id) {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player2)
+          ?.emit("enemyAttackableStateChange", x, y, z, value);
+      } else {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player1)
+          ?.emit("enemyAttackableStateChange", x, y, z, value);
+      }
+    }
+  );
 
   socket.on(
     "enemyAttackableStateChange",
@@ -156,6 +211,27 @@ console.log(isPrivate);
     }
   });
 
+  socket.on(
+    "toggleDefenseMode",
+    (
+      roomId: string,
+      x: number,
+      y: number,
+      z: number,
+      inDefenseMode: boolean
+    ) => {
+      if (gameRooms.get(roomId)!.player1 == socket.id) {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player2)
+          ?.emit("toggleDefenseMode", x, y, z, inDefenseMode);
+      } else {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player1)
+          ?.emit("toggleDefenseMode", x, y, z, inDefenseMode);
+      }
+    }
+  );
+
   socket.on("playerEndedTurn", (roomId: string) => {
     if (gameRooms.get(roomId)!.player1 == socket.id) {
       io.sockets.sockets
@@ -176,7 +252,6 @@ console.log(isPrivate);
       attackedCard: number[],
       attackingUserCards: number[]
     ) => {
-      console.log(attackingCards, attackedCard, attackingUserCards);
       if (gameRooms.get(roomId)!.player1 == socket.id) {
         io.sockets.sockets
           .get(gameRooms.get(roomId)!.player2)
@@ -199,13 +274,59 @@ console.log(isPrivate);
     }
   );
 
+  socket.on(
+    "playerTakesDamage",
+    (roomId: string, player1Damage: number, player2Damage: number) => {
+      if (gameRooms.get(roomId)!.player1 == socket.id) {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player2)
+          ?.emit("playerTakesDamage", player1Damage, player2Damage);
+      } else {
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!.player1)
+          ?.emit("playerTakesDamage", player1Damage, player2Damage);
+      }
+    }
+  );
+
   socket.on("disconnect", () => {
     console.log("user disconnected");
+    let gameRoomId: string = "";
+    gameRooms.forEach((gameRoom) => {
+      if (gameRoom.player1 == socket.id || gameRoom.player2 == socket.id) {
+        gameRoomId = gameRoom.gameroomId;
+      }
+    });
+
+    if (gameRooms.get(gameRoomId)) {
+      if (gameRooms.get(gameRoomId)!.player1 == socket.id) {
+        io.sockets.sockets
+          .get(gameRooms.get(gameRoomId)!.player2)
+          ?.disconnect(true);
+      } else {
+        io.sockets.sockets
+          .get(gameRooms.get(gameRoomId)!.player1)
+          ?.disconnect(true);
+      }
+      gameRooms.delete(gameRoomId);
+    }
+  });
+
+  socket.on("gameFinished", (roomId: string) => {
+    console.log("game finished");
+    if (gameRooms.get(roomId)!.player1 == socket.id) {
+      io.sockets.sockets
+        .get(gameRooms.get(roomId)!.player2)
+        ?.emit("gameFinished");
+    } else {
+      io.sockets.sockets
+        .get(gameRooms.get(roomId)!.player1)
+        ?.emit("gameFinished");
+    }
   });
 });
 
 function normalSearch(socket: Socket) {
-  
   if (freeGameRooms.length == 0) {
     let gameRoom = new GameRoom();
     gameRoom.gameroomId = generateGameRoomID();
@@ -228,20 +349,18 @@ function normalSearch(socket: Socket) {
   }
 }
 
-function joinGameRoom(socket: Socket, roomId: string){
+function joinGameRoom(socket: Socket, roomId: string) {
   let gameRoom = gameRooms.get(roomId);
-  if(gameRoom){
+  if (gameRoom) {
     gameRoom.player2 = socket.id;
     gameRoom.status = GameStatus.playing;
     socket.emit("gameRoomID", gameRoom.gameroomId);
     let random_boolean = Math.random() < 0.5;
+    io.sockets.sockets.get(gameRoom.player1)?.emit("startGame", random_boolean);
     io.sockets.sockets
-      .get(gameRoom.player1)
-      ?.emit("startGame", random_boolean);
-    io.sockets.sockets
-      .get(gameRoom.player2) 
+      .get(gameRoom.player2)
       ?.emit("startGame", !random_boolean);
-  }else{
+  } else {
     console.log("gameRoom not found");
     socket.disconnect();
   }
