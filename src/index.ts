@@ -104,20 +104,21 @@ io.on("connection", (socket: Socket) => {
       attackDamage: number,
       defenseDamage: number,
       effects: number[],
+      effects2: number[],
       x2: number,
       y2: number,
       z2: number,
       dies2: boolean,
       attackDamage2: number,
       defenseDamage2: number,
-      effects2: number[]
+      effects3: number[],
+      effects4: number[]
     ) => {
       if (gameRooms.get(roomId)!.player1 == socket.id) {
         io.sockets.sockets
           .get(gameRooms.get(roomId)!.player2)
           ?.emit(
-            "enemyAttackableStateChange",
-            roomId,
+            "showCardsFighting",
             x,
             y,
             z,
@@ -125,20 +126,21 @@ io.on("connection", (socket: Socket) => {
             attackDamage,
             defenseDamage,
             effects,
+            effects2,
             x2,
             y2,
             z2,
             dies2,
             attackDamage2,
             defenseDamage2,
-            effects2
+            effects3,
+            effects4
           );
       } else {
         io.sockets.sockets
           .get(gameRooms.get(roomId)!.player1)
           ?.emit(
-            "enemyAttackableStateChange",
-            roomId,
+            "showCardsFighting",
             x,
             y,
             z,
@@ -146,13 +148,15 @@ io.on("connection", (socket: Socket) => {
             attackDamage,
             defenseDamage,
             effects,
+            effects2,
             x2,
             y2,
             z2,
             dies2,
             attackDamage2,
             defenseDamage2,
-            effects2
+            effects3,
+            effects4
           );
       }
     }
@@ -164,11 +168,11 @@ io.on("connection", (socket: Socket) => {
       if (gameRooms.get(roomId)!.player1 == socket.id) {
         io.sockets.sockets
           .get(gameRooms.get(roomId)!.player2)
-          ?.emit("enemyAttackableStateChange", x, y, z, value);
+          ?.emit("showUserAttack", x, y, z, value);
       } else {
         io.sockets.sockets
           .get(gameRooms.get(roomId)!.player1)
-          ?.emit("enemyAttackableStateChange", x, y, z, value);
+          ?.emit("showUserAttack", x, y, z, value);
       }
     }
   );
