@@ -60,10 +60,16 @@ const io: Server = new Server<
   ServerToClientEvents,
   InterServerEvents,
   SocketData
->(server);
+>(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
 
-server.listen(3000, () => {
-  console.log("listening on *:3000");
+server.listen(4000, () => {
+  console.log("listening on *:4000");
 });
 
 let roomId: string | string[] | undefined = undefined;
@@ -72,8 +78,8 @@ let isPrivate: string | string[] | undefined = undefined;
 io.use((socket, next) => {
   roomId = socket.handshake.query.roomId;
   isPrivate = socket.handshake.query.isPrivate;
-  console.log("roomId");
-  if (socket.handshake.query.token === "UNITY") {
+
+  if (socket.handshake.query.token === "WEB") {
     next();
   } else {
     next(new Error("Authentication error"));
@@ -81,12 +87,10 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket: Socket) => {
-  console.log(roomId);
-  console.log(isPrivate);
-  if (roomId) {
+  if (roomId && roomId != "undefined") {
     joinGameRoom(socket, roomId as string);
   } else {
-    if (isPrivate) {
+    if (isPrivate && isPrivate != "undefined") {
       createPrivateRoom(socket);
     } else {
       normalSearch(socket);
@@ -343,7 +347,7 @@ function normalSearch(socket: Socket) {
     let gameRoom = gameRooms.get(freeGameRooms.splice(0, 1)[0]);
     if (gameRoom) {
       gameRoom!.player2 = socket.id;
-      gameRoom!.status = GameStatus.playing;
+      gameRoom!.status = GameStatus.PLAYING;
       socket.emit("gameRoomID", gameRoom!.gameroomId);
       let random_boolean = Math.random() < 0.5;
       io.sockets.sockets
@@ -360,7 +364,7 @@ function joinGameRoom(socket: Socket, roomId: string) {
   let gameRoom = gameRooms.get(roomId);
   if (gameRoom) {
     gameRoom.player2 = socket.id;
-    gameRoom.status = GameStatus.playing;
+    gameRoom.status = GameStatus.PLAYING;
     socket.emit("gameRoomID", gameRoom.gameroomId);
     let random_boolean = Math.random() < 0.5;
     io.sockets.sockets.get(gameRoom.player1)?.emit("startGame", random_boolean);
@@ -374,7 +378,6 @@ function joinGameRoom(socket: Socket, roomId: string) {
 }
 
 function createPrivateRoom(socket: Socket) {
-  console.log("yeah");
   let gameRoom = new GameRoom();
   gameRoom.gameroomId = generateGameRoomID();
   gameRoom.player1 = socket.id;
