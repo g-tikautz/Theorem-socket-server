@@ -1,3 +1,4 @@
+import { CardDTO } from "./Card";
 import { CardType } from "./Schemas";
 
 export class GameRoom {
@@ -5,8 +6,10 @@ export class GameRoom {
   _player1: string;
   _player2: string;
   _status: GameStatus;
-  _player1Deck: CardType[] = [];
-  _player2Deck: CardType[] = [];
+  _player1Deck: CardDTO[] = [];
+  _player2Deck: CardDTO[] = [];
+  _player1CurrentDeck: CardDTO[] = [];
+  _player2CurrentDeck: CardDTO[] = [];
 
   constructor() {
     this._gameroomId = "unset";
