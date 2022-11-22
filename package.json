@@ -3,9 +3,12 @@
     "version": "0.0.1",
     "description": "socket.io app for Theorem",
     "dependencies": {
-        "@types/socket.io": "^3.0.2",
+        "body-parser": "^1.20.1",
+        "dotenv": "^16.0.3",
         "express": "^4.17.3",
-        "socket.io": "^4.4.1"
+        "mongoose": "^6.7.2",
+        "socket.io": "^4.4.1",
+        "typescript": "^4.9.3"
     },
     "scripts": {
         "start": "tsc && node dist/index.js",
@@ -19,7 +22,7 @@
         "tslint": "^5.12.1"
     },
     "compilerOptions": {
-        "target": "es5"
+        "target": "es6"
     },
     "include": [
         "*.ts"

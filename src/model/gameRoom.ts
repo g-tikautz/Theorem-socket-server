@@ -1,9 +1,12 @@
+import { Card } from "./Card";
 
 export class GameRoom {
   _gameroomId: string;
   _player1: string;
   _player2: string;
   _status: GameStatus;
+  _player1Deck: Card[] = [];
+  _player2Deck: Card[] = [];
 
   constructor() {
     this._gameroomId = "unset";
