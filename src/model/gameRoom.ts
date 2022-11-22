@@ -1,12 +1,12 @@
-import { Card } from "./Card";
+import { CardType } from "./Schemas";
 
 export class GameRoom {
   _gameroomId: string;
   _player1: string;
   _player2: string;
   _status: GameStatus;
-  _player1Deck: Card[] = [];
-  _player2Deck: Card[] = [];
+  _player1Deck: CardType[] = [];
+  _player2Deck: CardType[] = [];
 
   constructor() {
     this._gameroomId = "unset";
@@ -50,11 +50,10 @@ export class GameRoom {
   get isFull(): boolean {
     return this._player1 !== "unset" && this._player2 !== "unset";
   }
-
 }
 
 export enum GameStatus {
   WAITING,
   PLAYING,
-  FINISHED
+  FINISHED,
 }

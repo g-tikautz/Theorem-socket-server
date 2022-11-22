@@ -4,14 +4,14 @@ import express from "express";
 import * as http from "http";
 import { GameRoom, GameStatus } from "./model/GameRoom";
 
-import bodyparser from 'body-parser';
+import bodyparser from "body-parser";
 import mongoose from "mongoose";
 // import { UserSchema } from "./model/UserSchema";
 import { CardType, User } from "./model/Schemas";
 import { Card } from "./model/Card";
 import process from "process";
 
-import * as dotenv from 'dotenv';
+import dotenv from "dotenv";
 dotenv.config();
 
 // Server messages
@@ -89,7 +89,6 @@ io.use((socket, next) => {
   roomId = socket.handshake.query.roomId;
   isPrivate = socket.handshake.query.isPrivate;
 
-
   if (socket.handshake.query.token === "WEB") {
     next();
   } else {
@@ -128,14 +127,22 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     );
 
     socket.on("drawCard", (roomId: string) => {
-      if (gameRooms.get(roomId)!.player1 == socket.id) {
-        io.sockets.sockets
-          .get(gameRooms.get(roomId)!.player2)
-          ?.emit("cardDrawn");
+      const gameRoom = gameRooms.get(roomId)!;
+      let card: CardType | undefined = undefined;
+      if (gameRoom.player1 == socket.id) {
+        card = gameRoom._player1Deck.pop();
+        if (card) {
+          io.sockets.sockets.get(gameRoom.player1)?.emit("nextCard", card);
+          io.sockets.sockets.get(gameRoom.player2)?.emit("cardDrawn", card._id);
+          console.log("should have been sent from player 1");
+        }
       } else {
-        io.sockets.sockets
-          .get(gameRooms.get(roomId)!.player1)
-          ?.emit("cardDrawn");
+        card = gameRoom._player2Deck.pop();
+        if (card) {
+          io.sockets.sockets.get(gameRoom.player2)?.emit("nextCard", card);
+          io.sockets.sockets.get(gameRoom.player1)?.emit("cardDrawn", card._id);
+          console.log("should have been sent from player 2");
+        }
       }
     });
 
@@ -290,14 +297,11 @@ async function startGame(socket: Socket, gameRoom: GameRoom) {
   if (gameRoom) {
     gameRoom.player2 = socket.id;
     gameRoom.status = GameStatus.PLAYING;
-    gameRoom._player1Deck = await getDeck(
-      gameRoom.player1,
-    );
+    gameRoom._player1Deck = await getDeck(gameRoom.player1);
+    gameRoom._player2Deck = await getDeck(gameRoom.player2);
     socket.emit("gameRoomID", gameRoom.gameroomId);
     let random_boolean = Math.random() < 0.5;
-    io.sockets.sockets
-      .get(gameRoom.player1)
-      ?.emit("startGame", random_boolean);
+    io.sockets.sockets.get(gameRoom.player1)?.emit("startGame", random_boolean);
     io.sockets.sockets
       .get(gameRoom.player2)
       ?.emit("startGame", !random_boolean);
@@ -306,28 +310,32 @@ async function startGame(socket: Socket, gameRoom: GameRoom) {
   return false;
 }
 
-async function getDeck(id: string): Promise<Card[]> {
+async function getDeck(id: string): Promise<CardType[]> {
   console.log(id);
-  let data = await User.find().populate<{ cards: CardType[] }>("cards").orFail();
+  let data = await User.find()
+    .populate<{ cards: CardType[] }>("cards")
+    .orFail();
 
-  console.log(data);
-  // data?.cards.map((card) => {
-  //   console.log(card);
-  //   return <Card>{
-  //     id: card._id,
-  //     name: card.name,
-  //     text: card.text,
-  //     attack: card.attack,
-  //     defense: card.defense,
-  //     mana: card.mana,
-  //     img: card.img,
-  //     effect: card.effect,
-  //     religion_type: card.religion_type,
-  //   }
-  // });
+  data[0].cards.map((card) => {
+    return {
+      id: card._id,
+      name: card.name,
+      text: card.text,
+      attack: card.attack,
+      defense: card.defense,
+      mana: card.mana,
+      img: card.img,
+      effect: card.effect,
+      religion_type: card.religion_type,
+    };
+  });
 
-
-  let deck: Card[] = [];
+  let deck = data[0].cards;
+  //shuffle deck
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
 
   return deck;
 }
