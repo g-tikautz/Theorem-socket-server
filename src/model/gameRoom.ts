@@ -10,6 +10,9 @@ export class GameRoom {
   _player2Deck: CardDTO[] = [];
   _player1CurrentDeck: CardDTO[] = [];
   _player2CurrentDeck: CardDTO[] = [];
+  turn: number = 0;
+  player1Played: boolean = false;
+  player2Played: boolean = false;
 
   constructor() {
     this._gameroomId = "unset";
