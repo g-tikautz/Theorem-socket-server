@@ -113,33 +113,33 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
 
     socket.on("changeTurn", (roomId: string) => {
       let gameRoom = gameRooms.get(roomId)!;
-      if (gameRoom.player1 == socket.id) {
-        gameRoom.player1Played = true;
+      if (gameRoom._player1Utilities.socketId == socket.id) {
+        gameRoom._player1Utilities.playerPlayed = true;
         if (
-          gameRoom.player1Played &&
-          gameRoom.player2Played &&
+          gameRoom._player1Utilities.playerPlayed &&
+          gameRoom._player2Utilities.playerPlayed &&
           gameRoom.turn < 7
         ) {
           gameRoom.turn++;
-          gameRoom.player1Played = false;
-          gameRoom.player2Played = false;
+          gameRoom._player1Utilities.playerPlayed = false;
+          gameRoom._player2Utilities.playerPlayed = false;
         }
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!.player2)
+          .get(gameRooms.get(roomId)!._player2Utilities.socketId)
           ?.emit("changeTurn", gameRoom.turn);
       } else {
-        gameRooms.get(roomId)!.player2Played = true;
+        gameRooms.get(roomId)!._player2Utilities.playerPlayed = true;
         if (
-          gameRoom.player1Played &&
-          gameRoom.player2Played &&
+          gameRoom._player1Utilities.playerPlayed &&
+          gameRoom._player2Utilities.playerPlayed &&
           gameRoom.turn < 7
         ) {
           gameRoom.turn++;
-          gameRoom.player1Played = false;
-          gameRoom.player2Played = false;
+          gameRoom._player1Utilities.playerPlayed = false;
+          gameRoom._player2Utilities.playerPlayed = false;
         }
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!.player1)
+          .get(gameRooms.get(roomId)!._player1Utilities.socketId)
           ?.emit("changeTurn", gameRoom.turn);
       }
     });
@@ -147,17 +147,17 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     socket.on("drawCard", (roomId: string) => {
       const gameRoom = gameRooms.get(roomId)!;
       let card: CardDTO | undefined = undefined;
-      if (gameRoom.player1 == socket.id) {
-        card = gameRoom._player1CurrentDeck.pop();
+      if (gameRoom._player1Utilities.socketId == socket.id) {
+        card = gameRoom._player1Utilities.playerCurrentDeck.pop();
         if (card) {
-          io.sockets.sockets.get(gameRoom.player1)?.emit("nextCard", card);
-          io.sockets.sockets.get(gameRoom.player2)?.emit("cardDrawn", card.id);
+          io.sockets.sockets.get(gameRoom._player1Utilities.socketId)?.emit("nextCard", card);
+          io.sockets.sockets.get(gameRoom._player2Utilities.socketId)?.emit("cardDrawn", card.id);
         }
       } else {
-        card = gameRoom._player2CurrentDeck.pop();
+        card = gameRoom._player1Utilities.playerCurrentDeck.pop();
         if (card) {
-          io.sockets.sockets.get(gameRoom.player2)?.emit("nextCard", card);
-          io.sockets.sockets.get(gameRoom.player1)?.emit("cardDrawn", card.id);
+          io.sockets.sockets.get(gameRoom._player2Utilities.socketId)?.emit("nextCard", card);
+          io.sockets.sockets.get(gameRoom._player1Utilities.socketId)?.emit("cardDrawn", card.id);
         }
       }
     });
@@ -165,15 +165,15 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     socket.on("playerPlaysCard", (roomId: string, cardKey) => {
       const gameRoom = gameRooms.get(roomId);
       if (gameRoom) {
-        if (gameRoom.player1 == socket.id) {
-          io.sockets.sockets.get(gameRoom.player2)?.emit(
+        if (gameRoom._player1Utilities.socketId == socket.id) {
+          io.sockets.sockets.get(gameRoom._player2Utilities.socketId)?.emit(
             "playerPlaysCard",
-            gameRoom._player1Deck.find((card) => card.key == cardKey)
+            gameRoom._player1Utilities.playerDeck.find((card) => card.key == cardKey)
           );
         } else {
-          io.sockets.sockets.get(gameRoom.player1)?.emit(
+          io.sockets.sockets.get(gameRoom._player1Utilities.socketId)?.emit(
             "playerPlaysCard",
-            gameRoom._player2Deck.find((card) => card.key == cardKey)
+            gameRoom._player2Utilities.playerDeck.find((card) => card.key == cardKey)
           );
         }
       }
@@ -183,19 +183,17 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       "toggleDefenseMode",
       (
         roomId: string,
-        x: number,
-        y: number,
-        z: number,
-        inDefenseMode: boolean
+        inDefenseMode: boolean,
+        cardKey: string,
       ) => {
-        if (gameRooms.get(roomId)!.player1 == socket.id) {
+        if (gameRooms.get(roomId)!._player1Utilities.socketId == socket.id) {
           io.sockets.sockets
-            .get(gameRooms.get(roomId)!.player2)
-            ?.emit("toggleDefenseMode", x, y, z, inDefenseMode);
+            .get(gameRooms.get(roomId)!._player2Utilities.socketId)
+            ?.emit("toggleDefenseMode", inDefenseMode, cardKey);
         } else {
           io.sockets.sockets
-            .get(gameRooms.get(roomId)!.player1)
-            ?.emit("toggleDefenseMode", x, y, z, inDefenseMode);
+            .get(gameRooms.get(roomId)!._player1Utilities.socketId)
+            ?.emit("toggleDefenseMode", inDefenseMode, cardKey);
         }
       }
     );
@@ -203,26 +201,26 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     socket.on(
       "playerTakesDamage",
       (roomId: string, player1Damage: number, player2Damage: number) => {
-        if (gameRooms.get(roomId)!.player1 == socket.id) {
+        if (gameRooms.get(roomId)!._player1Utilities.socketId == socket.id) {
           io.sockets.sockets
-            .get(gameRooms.get(roomId)!.player2)
+            .get(gameRooms.get(roomId)!._player2Utilities.socketId)
             ?.emit("playerTakesDamage", player1Damage, player2Damage);
         } else {
           io.sockets.sockets
-            .get(gameRooms.get(roomId)!.player1)
+            .get(gameRooms.get(roomId)!._player1Utilities.socketId)
             ?.emit("playerTakesDamage", player1Damage, player2Damage);
         }
       }
     );
 
     socket.on("playerAttacks", (roomId, attackedCard, attackingCard) => {
-      if (gameRooms.get(roomId)!.player1 == socket.id) {
+      if (gameRooms.get(roomId)!._player1Utilities.socketId == socket.id) {
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!.player2)
+          .get(gameRooms.get(roomId)!._player2Utilities.socketId)
           ?.emit("playerAttacks", attackedCard, attackingCard);
       } else {
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!.player1)
+          .get(gameRooms.get(roomId)!._player1Utilities.socketId)
           ?.emit("playerAttacks", attackedCard, attackingCard);
       }
     });
@@ -231,19 +229,19 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       console.log("user disconnected");
       let gameRoomId: string = "";
       gameRooms.forEach((gameRoom) => {
-        if (gameRoom.player1 == socket.id || gameRoom.player2 == socket.id) {
+        if (gameRoom._player1Utilities.socketId == socket.id || gameRoom._player2Utilities.socketId == socket.id) {
           gameRoomId = gameRoom.gameroomId;
         }
       });
 
       if (gameRooms.get(gameRoomId)) {
-        if (gameRooms.get(gameRoomId)!.player1 == socket.id) {
+        if (gameRooms.get(gameRoomId)!._player1Utilities.socketId == socket.id) {
           io.sockets.sockets
-            .get(gameRooms.get(gameRoomId)!.player2)
+            .get(gameRooms.get(gameRoomId)!._player2Utilities.socketId)
             ?.disconnect(true);
         } else {
           io.sockets.sockets
-            .get(gameRooms.get(gameRoomId)!.player1)
+            .get(gameRooms.get(gameRoomId)!._player1Utilities.socketId)
             ?.disconnect(true);
         }
         gameRooms.delete(gameRoomId);
@@ -252,13 +250,13 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
 
     socket.on("gameFinished", (roomId: string) => {
       console.log("game finished");
-      if (gameRooms.get(roomId)!.player1 == socket.id) {
+      if (gameRooms.get(roomId)!._player1Utilities.socketId == socket.id) {
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!.player2)
+          .get(gameRooms.get(roomId)!._player2Utilities.socketId)
           ?.emit("gameFinished");
       } else {
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!.player1)
+          .get(gameRooms.get(roomId)!._player1Utilities.socketId)
           ?.emit("gameFinished");
       }
     });
@@ -269,7 +267,7 @@ async function normalSearch(socket: Socket) {
   if (freeGameRooms.length == 0) {
     let gameRoom = new GameRoom();
     gameRoom.gameroomId = generateGameRoomID();
-    gameRoom.player1 = socket.id;
+    gameRoom._player1Utilities.socketId = socket.id;
     gameRooms.set(gameRoom.gameroomId, gameRoom);
     freeGameRooms.push(gameRoom.gameroomId);
     socket.emit("gameRoomID", gameRoom.gameroomId);
@@ -286,18 +284,18 @@ async function normalSearch(socket: Socket) {
 
 async function startGame(socket: Socket, gameRoom: GameRoom) {
   if (gameRoom) {
-    gameRoom.player2 = socket.id;
+    gameRoom._player2Utilities.socketId = socket.id;
     gameRoom.status = GameStatus.PLAYING;
-    gameRoom._player1Deck = await getDeck(gameRoom.player1);
-    gameRoom._player2Deck = await getDeck(gameRoom.player2);
-    gameRoom._player1CurrentDeck = gameRoom._player1Deck;
-    gameRoom._player2CurrentDeck = gameRoom._player2Deck;
+    gameRoom._player1Utilities.playerDeck = await getDeck(gameRoom._player1Utilities.socketId);
+    gameRoom._player2Utilities.playerDeck = await getDeck(gameRoom._player2Utilities.socketId);
+    gameRoom._player1Utilities.playerCurrentDeck = gameRoom._player1Utilities.playerDeck;
+    gameRoom._player2Utilities.playerCurrentDeck = gameRoom._player2Utilities.playerDeck;
     gameRoom.turn = 1;
     socket.emit("gameRoomID", gameRoom.gameroomId);
     let random_boolean = Math.random() < 0.5;
-    io.sockets.sockets.get(gameRoom.player1)?.emit("startGame", random_boolean);
+    io.sockets.sockets.get(gameRoom._player1Utilities.socketId)?.emit("startGame", random_boolean);
     io.sockets.sockets
-      .get(gameRoom.player2)
+      .get(gameRoom._player2Utilities.socketId)
       ?.emit("startGame", !random_boolean);
     return true;
   }
@@ -311,10 +309,10 @@ async function getDeck(id: string): Promise<CardDTO[]> {
 
   let deck: CardDTO[] = [];
 
-  data[0].cards.forEach((card) => {
+  data[0].cards.forEach((card, index) => {
     //create unique hashcode for each card
     deck.push({
-      key: card._id + "_" + id,
+      key: card._id + "_" + index + "_" + id,
       id: card._id,
       name: card.name.valueOf(),
       text: card.text.valueOf(),
@@ -357,7 +355,7 @@ async function joinGameRoom(socket: Socket, roomId: string) {
 function createPrivateRoom(socket: Socket) {
   let gameRoom = new GameRoom();
   gameRoom.gameroomId = generateGameRoomID();
-  gameRoom.player1 = socket.id;
+  gameRoom._player1Utilities.socketId = socket.id;
   gameRooms.set(gameRoom.gameroomId, gameRoom);
   socket.emit("gameRoomID", gameRoom.gameroomId);
 }
