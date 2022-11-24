@@ -14,7 +14,7 @@ export interface CardType {
   defense: Number;
   text: String;
   img: String;
-  effect: String;
+  effect: [String];
 }
 
 const UserSchema = new Schema(
@@ -36,7 +36,7 @@ const CardSchema = new Schema(
     defense: Number,
     text: String,
     img: String,
-    effect: String,
+    effect: [String],
   },
   {
     collection: "Cards",

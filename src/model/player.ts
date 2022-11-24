@@ -1,6 +1,7 @@
 import { CardDTO } from "./Card";
 
 export class Player {
+    health: number = 20;
     playerDeck: CardDTO[] = [];
     playerCurrentDeck: CardDTO[] = [];
     playerHand: CardDTO[] = [];

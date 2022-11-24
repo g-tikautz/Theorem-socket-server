@@ -1,6 +1,7 @@
-import { ObjectId } from "mongoose";
+import { ObjectId, Schema } from "mongoose";
+import { StandardEffects } from "./Enum";
 
-export interface CardDTO {
+export class CardDTO {
   key: string;
   id: ObjectId;
   name: string;
@@ -10,5 +11,66 @@ export interface CardDTO {
   defense: number;
   text: string;
   img: string;
-  effect: string;
+  effect: StandardEffects[];
+  stance: "attack" | "defense";
+  playedStance: "open" | "hidden";
+  trapped: boolean = false;
+
+  constructor(
+    key: string,
+    id: Schema.Types.ObjectId,
+    name: string,
+    text: string,
+    attack: number,
+    defense: number,
+    mana: number,
+    img: string,
+    effect: StandardEffects[],
+    religion_type: string,
+    playedStance: "open" | "hidden",
+    stance: "attack" | "defense"
+  ) {
+    this.key = key;
+    this.id = id;
+    this.name = name;
+    this.mana = mana;
+    this.religion_type = religion_type;
+    this.attack = attack;
+    this.defense = defense;
+    this.text = text;
+    this.img = img;
+    this.effect = effect;
+    this.stance = stance;
+    this.playedStance = playedStance;
+  }
+
+  hasEffect(effect: StandardEffects): boolean {
+    return this.effect.includes(effect);
+  }
+
+  getFightValue(): number {
+    if (this.stance === "attack" && this.playedStance === "open") {
+      return this.attack;
+    } else {
+      return this.defense;
+    }
+  }
+
+  cardTakesDamage(damage: number){
+    if(this.stance === "attack" && this.playedStance === "open"){
+      this.attack -= damage;
+    } else {
+      this.defense -= damage;
+    }
+  }
+
+  removeEffects(effects: StandardEffects[]): void {
+    this.effect = this.effect.filter((e) => !effects.includes(e));
+  }
+
+  cardTrapped(): void {
+    this.trapped = true;
+    this.stance = "defense";
+  }
+
 }
