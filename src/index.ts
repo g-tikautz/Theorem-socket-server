@@ -119,8 +119,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
         gameRoom._player1Utilities.playerPlayed = true;
         if (
           gameRoom._player1Utilities.playerPlayed &&
-          gameRoom._player2Utilities.playerPlayed &&
-          gameRoom.turn < 7
+          gameRoom._player2Utilities.playerPlayed
         ) {
           gameRoom.turn++;
           gameRoom._player1Utilities.playerPlayed = false;
@@ -140,8 +139,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
         gameRooms.get(roomId)!._player2Utilities.playerPlayed = true;
         if (
           gameRoom._player1Utilities.playerPlayed &&
-          gameRoom._player2Utilities.playerPlayed &&
-          gameRoom.turn < 7
+          gameRoom._player2Utilities.playerPlayed
         ) {
           gameRoom.turn++;
           gameRoom._player1Utilities.playerPlayed = false;
@@ -163,8 +161,8 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       let card: CardDTO | undefined = undefined;
       if (gameRoom._player1Utilities.socketId == socket.id) {
         card = gameRoom._player1Utilities.playerCurrentDeck.pop();
-        gameRoom._player1Utilities.playerHand.push(card!);
         if (card) {
+          gameRoom._player1Utilities.playerHand.push(card);
           io.sockets.sockets
             .get(gameRoom._player1Utilities.socketId)
             ?.emit("nextCard", card);
@@ -174,8 +172,9 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
         }
       } else {
         card = gameRoom._player2Utilities.playerCurrentDeck.pop();
-        gameRoom._player2Utilities.playerHand.push(card!);
+
         if (card) {
+          gameRoom._player2Utilities.playerHand.push(card);
           io.sockets.sockets
             .get(gameRoom._player2Utilities.socketId)
             ?.emit("nextCard", card);
@@ -193,6 +192,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
           const card = gameRoom._player1Utilities.playerHand.find(
             (card) => card.key == cardKey
           );
+          console.log(gameRoom._player1Utilities.playerHand);
           if (card) {
             card.stance = stance;
             gameRoom._player1Utilities.playerHand =
@@ -251,23 +251,28 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     });
 
     socket.on("playerAttacks", (roomId, attackedCardKey, attackingCardKey) => {
+      console.log("player attacks");
       const gameRoom = gameRooms.get(roomId)!;
       let attackedCard;
       let attackingCard;
       let result;
+      //player 1 attacks
       if (gameRoom._player1Utilities.socketId == socket.id) {
+        //get attacking card
         attackingCard = gameRoom._player1Utilities.playerField.find(
-          (card) => card.key == attackedCardKey
-        );
-        attackedCard = gameRoom._player2Utilities.playerField.find(
           (card) => card.key == attackingCardKey
         );
+        //get attacked card
+        attackedCard = gameRoom._player2Utilities.playerField.find(
+          (card) => card.key == attackedCardKey
+        );
 
+        // if both cards die
         if (attackedCard && attackingCard) {
-          result = calculateFight(attackedCard, attackingCard);
+          result = calculateFight(attackingCard, attackedCard);
+          console.log(result);
         }
-
-        //happens if both cards die
+        //happens if the attacking card dies
         if (result?.attackingCardDies && result?.defendingCardDies) {
           gameRoom._player1Utilities.playerField =
             gameRoom._player1Utilities.playerField.filter(
@@ -282,7 +287,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
           if (result?.attackingCardDies && !result?.defendingCardDies) {
             gameRoom._player1Utilities.playerField =
               gameRoom._player1Utilities.playerField.filter(
-                (card) => card.key != attackingCardKey
+                (card) => card.key != attackedCardKey
               );
             gameRoom._player2Utilities.playerField
               .find((card) => card.key == attackedCardKey)!
@@ -309,8 +314,9 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
                 .find((card) => card.key == attackingCardKey)!
                 .cardTrapped();
             }
-          } else {
+
             // happens if both cards survive for whatever dumb reason
+          } else {
             gameRoom._player2Utilities.playerField
               .find((card) => card.key == attackedCardKey)!
               .cardTakesDamage(result?.attackingCardDamage!);
@@ -339,16 +345,19 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
 
         io.sockets.sockets
           .get(gameRoom._player2Utilities.socketId)
-          ?.emit("playerAttacks", attackedCard, attackingCard, result);
+          ?.emit("playerAttacks", attackedCardKey, attackingCardKey, result);
+
+        // if player 2 is the attacker
       } else {
         attackingCard = gameRoom._player2Utilities.playerField.find(
-          (card) => card.key == attackedCardKey
-        );
-        attackedCard = gameRoom._player1Utilities.playerField.find(
           (card) => card.key == attackingCardKey
         );
+        attackedCard = gameRoom._player1Utilities.playerField.find(
+          (card) => card.key == attackedCardKey
+        );
         if (attackedCard && attackingCard) {
-          result = calculateFight(attackedCard, attackingCard);
+          result = calculateFight(attackedCard, attackedCard);
+          console.log(result);
         }
 
         //happens if both cards die
@@ -417,7 +426,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
 
         io.sockets.sockets
           .get(gameRoom._player1Utilities.socketId)
-          ?.emit("playerAttacks", attackedCard, attackingCard, result);
+          ?.emit("playerAttacks", attackedCardKey, attackingCardKey, result);
       }
     });
 
@@ -531,7 +540,7 @@ async function getDeck(id: string): Promise<CardDTO[]> {
     const standardEffects: StandardEffects[] = [];
     card.effect.forEach((effect) => {
       standardEffects.push(
-        StandardEffects[effect as keyof typeof StandardEffects]
+        StandardEffects[effect.toLocaleUpperCase() as keyof typeof StandardEffects]
       );
     });
 
@@ -660,3 +669,4 @@ function calculateFight(
 
   return result;
 }
+

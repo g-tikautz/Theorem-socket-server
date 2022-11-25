@@ -1,6 +1,6 @@
 import { StandardEffects } from "./Enum";
 
-export class Result{
+export class Result {
     defendingCardDies: boolean = false;
     attackingCardDies: boolean = false;
     defendingCardsPlayerDamage = 0;
