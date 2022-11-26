@@ -12,8 +12,8 @@ export class CardDTO {
   text: string;
   img: string;
   effect: StandardEffects[];
-  stance: "attack" | "defense";
-  playedStance: "open" | "hidden";
+  stance: "attack" | "defense" = "attack";
+  playedStance: "open" | "hidden" = "open";
   trapped: boolean = false;
 
   constructor(
@@ -27,8 +27,6 @@ export class CardDTO {
     img: string,
     effect: StandardEffects[],
     religion_type: string,
-    playedStance: "open" | "hidden",
-    stance: "attack" | "defense"
   ) {
     this.key = key;
     this.id = id;
@@ -40,8 +38,6 @@ export class CardDTO {
     this.text = text;
     this.img = img;
     this.effect = effect;
-    this.stance = stance;
-    this.playedStance = playedStance;
   }
 
   hasEffect(effect: StandardEffects): boolean {
