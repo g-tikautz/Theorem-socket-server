@@ -2,7 +2,7 @@ import { Socket, Server } from "socket.io";
 import express from "express";
 
 import * as http from "http";
-import { GameRoom, GameStatus } from "./model/GameRoom";
+import { GameRoom, GameStatus } from "./model/gameRoom";
 
 import bodyparser from "body-parser";
 import mongoose from "mongoose";
