@@ -126,36 +126,6 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
           gameRoom._player2Utilities.playerPlayed = false;
         }
         // reset cards to inital state that are on the game field
-        gameRoom._player1Utilities.playerField =
-          gameRoom._player1Utilities.playerField.map((card) => {
-            let cardN = gameRoom._player1Utilities.playerDeck.find(
-              (cardn) => cardn.key == card.key
-            )!;
-            cardN.stance = card.stance;
-            cardN.playedStance = card.playedStance;
-            cardN.trapped = card.trapped;
-
-            return cardN;
-          });
-
-        io.sockets.sockets
-          .get(gameRooms.get(roomId)!._player2Utilities.socketId)
-          ?.emit(
-            "changeTurn",
-            gameRoom.turn,
-            gameRoom._player1Utilities.playerField,
-            gameRoom._player2Utilities.playerField
-          );
-      } else {
-        gameRooms.get(roomId)!._player2Utilities.playerPlayed = true;
-        if (
-          gameRoom._player1Utilities.playerPlayed &&
-          gameRoom._player2Utilities.playerPlayed
-        ) {
-          gameRoom.turn++;
-          gameRoom._player1Utilities.playerPlayed = false;
-          gameRoom._player2Utilities.playerPlayed = false;
-        }
         gameRoom._player2Utilities.playerField =
           gameRoom._player2Utilities.playerField.map((card) => {
             let cardN = gameRoom._player2Utilities.playerDeck.find(
@@ -168,13 +138,50 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
             return cardN;
           });
 
+        gameRoom._player2Utilities.mana = gameRoom.turn;
+
+        io.sockets.sockets
+          .get(gameRooms.get(roomId)!._player2Utilities.socketId)
+          ?.emit(
+            "changeTurn",
+            gameRoom.turn,
+            gameRoom._player1Utilities.playerField,
+            gameRoom._player2Utilities.playerField,
+            gameRoom.turn >= gameRoom._player2Utilities.manaConverted
+          );
+      } else {
+        gameRooms.get(roomId)!._player2Utilities.playerPlayed = true;
+        if (
+          gameRoom._player1Utilities.playerPlayed &&
+          gameRoom._player2Utilities.playerPlayed
+        ) {
+          gameRoom.turn++;
+          gameRoom._player1Utilities.playerPlayed = false;
+          gameRoom._player2Utilities.playerPlayed = false;
+        }
+
+        gameRoom._player1Utilities.playerField =
+          gameRoom._player1Utilities.playerField.map((card) => {
+            let cardN = gameRoom._player1Utilities.playerDeck.find(
+              (cardn) => cardn.key == card.key
+            )!;
+            cardN.stance = card.stance;
+            cardN.playedStance = card.playedStance;
+            cardN.trapped = card.trapped;
+
+            return cardN;
+          });
+
+        gameRoom._player1Utilities.mana = gameRoom.turn;
+
         io.sockets.sockets
           .get(gameRooms.get(roomId)!._player1Utilities.socketId)
           ?.emit(
             "changeTurn",
             gameRoom.turn,
             gameRoom._player2Utilities.playerField,
-            gameRoom._player1Utilities.playerField
+            gameRoom._player1Utilities.playerField,
+            gameRoom.turn >= gameRoom._player1Utilities.manaConverted
           );
       }
     });
@@ -207,6 +214,19 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
         io.sockets.sockets
           .get(gameRooms.get(roomId)!._player1Utilities.socketId)
           ?.emit("enemyDrawForFirstTime", cards);
+      }
+    });
+
+    socket.on("convertMana", (roomId: string, mana: number) => {
+      let gameRoom = gameRooms.get(roomId)!;
+      if (gameRoom._player1Utilities.socketId == socket.id) {
+        gameRoom._player1Utilities.health -= mana;
+        gameRoom._player1Utilities.mana += mana;
+        gameRoom._player1Utilities.manaConverted = gameRoom.turn + mana;
+      } else {
+        gameRoom._player2Utilities.health -= mana;
+        gameRoom._player2Utilities.mana += mana;
+        gameRoom._player2Utilities.manaConverted = gameRoom.turn + mana;
       }
     });
 
@@ -343,8 +363,6 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
               gameRoom._player2Utilities.health
             );
 
-          console.log(gameRoom._player2Utilities.health);
-
           if (gameRoom._player2Utilities.health <= 0) {
             io.sockets.sockets
               .get(gameRoom._player2Utilities.socketId)
@@ -360,7 +378,6 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
         );
         if (attackingCard) {
           gameRoom._player1Utilities.health -= attackingCard.attack;
-          console.log(gameRoom._player1Utilities.health);
           io.sockets.sockets
             .get(gameRoom._player1Utilities.socketId)
             ?.emit(
@@ -620,9 +637,27 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
               );
           }
         }
-        console.log(result);
-        console.log(gameRoom._player1Utilities.health);
-        console.log(gameRoom._player2Utilities.health);
+        console.log("player1 Field", gameRoom._player1Utilities.playerField);
+        console.log("player2 Field", gameRoom._player2Utilities.playerField);
+        console.log("result", result);
+
+        if (gameRoom._player1Utilities.health <= 0) {
+          io.sockets.sockets
+            .get(gameRoom._player1Utilities.socketId)
+            ?.emit("gameOver", "lost");
+          io.sockets.sockets
+            .get(gameRoom._player2Utilities.socketId)
+            ?.emit("gameOver", "won");
+        }
+
+        if (gameRoom._player2Utilities.health <= 0) {
+          io.sockets.sockets
+            .get(gameRoom._player2Utilities.socketId)
+            ?.emit("gameOver", "lost");
+          io.sockets.sockets
+            .get(gameRoom._player1Utilities.socketId)
+            ?.emit("gameOver", "won");
+        }
       }
     );
 
