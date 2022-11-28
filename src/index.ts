@@ -74,7 +74,7 @@ const io: Server = new Server<
   SocketData
 >(server, {
   cors: {
-    origin: "http://3.72.194.14:3000",
+    origin: process.env.FRONTEND_SERVER,
     methods: ["GET", "POST"],
     credentials: true,
   },
