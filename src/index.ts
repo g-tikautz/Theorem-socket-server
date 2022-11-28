@@ -64,7 +64,11 @@ function generateGameRoomID(): string {
 
 const app = express();
 
+const cors = require('cors');
+
 app.use(bodyparser.json());
+
+app.use(cors());
 
 const server: http.Server = http.createServer(app);
 const io: Server = new Server<
@@ -74,9 +78,8 @@ const io: Server = new Server<
   SocketData
 >(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*",
     methods: ["GET", "POST"],
-    credentials: true,
   },
 });
 
@@ -772,7 +775,7 @@ async function getDeck(id: string): Promise<CardDTO[]> {
     card.effect.forEach((effect) => {
       standardEffects.push(
         StandardEffects[
-          effect.toLocaleUpperCase() as keyof typeof StandardEffects
+        effect.toLocaleUpperCase() as keyof typeof StandardEffects
         ]
       );
     });
