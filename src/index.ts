@@ -64,11 +64,7 @@ function generateGameRoomID(): string {
 
 const app = express();
 
-const cors = require('cors');
-
 app.use(bodyparser.json());
-
-app.use(cors());
 
 const server: http.Server = http.createServer(app);
 const io: Server = new Server<
@@ -78,8 +74,9 @@ const io: Server = new Server<
   SocketData
 >(server, {
   cors: {
-    origin: "*",
+    origin: "http://3.72.194.14:3000",
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
