@@ -223,10 +223,18 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
         gameRoom._player1Utilities.health -= mana;
         gameRoom._player1Utilities.mana += mana;
         gameRoom._player1Utilities.manaConverted = gameRoom.turn + mana;
+        io.sockets.sockets.get(gameRoom._player2Utilities.socketId)?.emit(
+          "enemyConvertMana",
+          mana
+        );
       } else {
         gameRoom._player2Utilities.health -= mana;
         gameRoom._player2Utilities.mana += mana;
         gameRoom._player2Utilities.manaConverted = gameRoom.turn + mana;
+        io.sockets.sockets.get(gameRoom._player1Utilities.socketId)?.emit(
+          "enemyConvertMana",
+          mana
+        );
       }
     });
 
@@ -845,7 +853,7 @@ function calculateFight(
     result.effectsHittingAttackingCard.push(StandardEffects.CAGE);
   } else if (defendingCard.hasEffect(StandardEffects.SHIELD)) {
     if (attackingCard.getFightValue() >= defendingCard.getFightValue()) {
-      //attacking card is stronger or euqal strong then no card dies and attacking card gets damage
+      //attacking card is stronger or equal strong then no card dies and attacking card gets damage
       result.attackingCardDamage = defendingCard.getFightValue();
     } else {
       //attacking card is weaker - attacking card dies
@@ -860,7 +868,6 @@ function calculateFight(
     //When the defending card was in hidden defense it loses
     if (defendingCard.playedStance == "hidden") {
       result.defendingCardDies = true;
-      result.attackingCardDamage = defendingCard.getFightValue();
 
       if (attackingCard.hasEffect(StandardEffects.BOUNTY)) {
         result.attackingCardsPlayerDamage = -1;
