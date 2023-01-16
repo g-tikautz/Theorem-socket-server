@@ -11,4 +11,5 @@ export class Player {
   socketId: string = "";
   mana: number = 1;
   manaConverted: number = 0;
+  playerID: string = "";
 }

@@ -1,6 +1,4 @@
-import { CardDTO } from "./Card";
 import { Player } from "./player";
-import { CardType } from "./Schemas";
 
 export class GameRoom {
   _gameroomId: string;

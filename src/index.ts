@@ -86,10 +86,12 @@ server.listen(4000, () => {
 
 let roomId: string | string[] | undefined = undefined;
 let isPrivate: string | string[] | undefined = undefined;
+let playerId: string = "";
 
 io.use((socket, next) => {
   roomId = socket.handshake.query.roomId;
   isPrivate = socket.handshake.query.isPrivate;
+  playerId = socket.handshake.query.playerId as string;
 
   if (socket.handshake.query.token === "WEB") {
     next();
@@ -114,7 +116,10 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     }
 
     socket.on("changeTurn", (roomId: string) => {
-      let gameRoom = gameRooms.get(roomId)!;
+      let gameRoom = gameRooms.get(roomId);
+      if (!gameRoom) {
+        return;
+      }
       if (gameRoom._player1Utilities.socketId == socket.id) {
         gameRoom._player1Utilities.playerPlayed = true;
         if (
@@ -128,7 +133,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
         // reset cards to inital state that are on the game field
         gameRoom._player2Utilities.playerField =
           gameRoom._player2Utilities.playerField.map((card) => {
-            let cardN = gameRoom._player2Utilities.playerDeck.find(
+            let cardN = gameRoom!._player2Utilities.playerDeck.find(
               (cardn) => cardn.key == card.key
             )!;
             cardN.stance = card.stance;
@@ -162,7 +167,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
 
         gameRoom._player1Utilities.playerField =
           gameRoom._player1Utilities.playerField.map((card) => {
-            let cardN = gameRoom._player1Utilities.playerDeck.find(
+            let cardN = gameRoom!._player1Utilities.playerDeck.find(
               (cardn) => cardn.key == card.key
             )!;
             cardN.stance = card.stance;
@@ -188,7 +193,10 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
 
     socket.on("drawForFirstTime", (roomId: string) => {
       // If the user draws cards for the frist time give him the first 5 cards from the current deck
-      let gameRoom = gameRooms.get(roomId)!;
+      let gameRoom = gameRooms.get(roomId);
+      if (!gameRoom) {
+        return;
+      }
       if (gameRoom._player1Utilities.socketId == socket.id) {
         let cards = [];
         for (let i = 0; i < 5; i++) {
@@ -239,7 +247,10 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     });
 
     socket.on("drawCard", (roomId: string) => {
-      const gameRoom = gameRooms.get(roomId)!;
+      const gameRoom = gameRooms.get(roomId);
+      if (!gameRoom) {
+        return;
+      }
       let card: CardDTO | undefined = undefined;
       if (gameRoom._player1Utilities.socketId == socket.id) {
         card = gameRoom._player1Utilities.playerCurrentDeck.pop();
@@ -341,13 +352,16 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     );
 
     socket.on("playerTakesDamage", (roomId: string, playerDamage: number) => {
-      if (gameRooms.get(roomId)!._player1Utilities.socketId == socket.id) {
+      let gameRoom = gameRooms.get(roomId);
+      if (!gameRoom) return;
+
+      if (gameRoom._player1Utilities.socketId == socket.id) {
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!._player2Utilities.socketId)
+          .get(gameRoom._player2Utilities.socketId)
           ?.emit("playerTakesDamage", playerDamage);
       } else {
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!._player1Utilities.socketId)
+          .get(gameRoom._player1Utilities.socketId)
           ?.emit("playerTakesDamage", playerDamage);
       }
     });
@@ -409,7 +423,10 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     socket.on(
       "playerAttacks",
       (roomId, attackedCardKey: string, attackingCardKey: string) => {
-        const gameRoom: GameRoom = gameRooms.get(roomId)!;
+        const gameRoom: GameRoom | undefined = gameRooms.get(roomId);
+        if (!gameRoom) {
+          return;
+        }
         let attackedCard;
         let attackingCard;
         let result;
@@ -698,14 +715,15 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     });
 
     socket.on("gameFinished", (roomId: string) => {
-      console.log("game finished");
-      if (gameRooms.get(roomId)!._player1Utilities.socketId == socket.id) {
+      let gameRoom = gameRooms.get(roomId);
+      if (!gameRoom) return;
+      if (gameRoom._player1Utilities.socketId == socket.id) {
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!._player2Utilities.socketId)
+          .get(gameRoom._player2Utilities.socketId)
           ?.emit("gameFinished");
       } else {
         io.sockets.sockets
-          .get(gameRooms.get(roomId)!._player1Utilities.socketId)
+          .get(gameRoom._player1Utilities.socketId)
           ?.emit("gameFinished");
       }
     });
@@ -717,6 +735,7 @@ async function normalSearch(socket: Socket) {
     let gameRoom = new GameRoom();
     gameRoom.gameroomId = generateGameRoomID();
     gameRoom._player1Utilities.socketId = socket.id;
+    gameRoom._player1Utilities.playerID = playerId;
     gameRooms.set(gameRoom.gameroomId, gameRoom);
     freeGameRooms.push(gameRoom.gameroomId);
     socket.emit("gameRoomID", gameRoom.gameroomId);
@@ -735,6 +754,7 @@ async function startGame(socket: Socket, gameRoom: GameRoom) {
   if (gameRoom) {
     gameRoom._player2Utilities.socketId = socket.id;
 
+    gameRoom._player2Utilities.playerID = playerId;
     gameRoom.status = GameStatus.PLAYING;
 
     gameRoom._player1Utilities.playerDeck = await getDeck(
@@ -827,6 +847,7 @@ function createPrivateRoom(socket: Socket) {
   let gameRoom = new GameRoom();
   gameRoom.gameroomId = generateGameRoomID();
   gameRoom._player1Utilities.socketId = socket.id;
+  gameRoom._player1Utilities.playerID = playerId;
   gameRooms.set(gameRoom.gameroomId, gameRoom);
   socket.emit("gameRoomID", gameRoom.gameroomId);
 }
