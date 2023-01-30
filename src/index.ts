@@ -425,6 +425,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       (roomId, attackedCardKey: string, attackingCardKey: string) => {
         const gameRoom: GameRoom | undefined = gameRooms.get(roomId);
         if (!gameRoom) {
+          console.error("Game room not found");
           return;
         }
         let attackedCard;
@@ -436,10 +437,19 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
           attackingCard = gameRoom._player1Utilities.playerField.find(
             (card) => card.key == attackingCardKey
           );
+
+          if (!attackingCard) {
+            throw new Error("Attackingcard not found");
+          }
+
           //get attacked card
           attackedCard = gameRoom._player2Utilities.playerField.find(
             (card) => card.key == attackedCardKey
           );
+
+          if (!attackedCard) {
+            throw new Error("Attackedcard not found");
+          }
 
           // if both cards die
           if (attackedCard && attackingCard) {
@@ -527,6 +537,8 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
 
           result.attackingCard = attackingCard;
           result.defendingCard = attackedCard;
+
+          console.log("Should send result");
 
           io.sockets.sockets
             .get(gameRoom._player2Utilities.socketId)
@@ -634,33 +646,35 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
                 .find((card) => card.key == attackedCardKey)!
                 .removeEffects(result?.effectsUsedByDefendingCard);
             }
-
-            gameRoom._player1Utilities.health -=
-              result?.defendingCardsPlayerDamage;
-            gameRoom._player2Utilities.health -=
-              result?.attackingCardsPlayerDamage;
-
-            result.attackingCard = attackingCard;
-            result.defendingCard = attackedCard;
-
-            io.sockets.sockets
-              .get(gameRoom._player1Utilities.socketId)
-              ?.emit(
-                "playerAttacks",
-                result,
-                gameRoom._player1Utilities.health,
-                gameRoom._player2Utilities.health
-              );
-
-            io.sockets.sockets
-              .get(gameRoom._player2Utilities.socketId)
-              ?.emit(
-                "attackResult",
-                result,
-                gameRoom._player2Utilities.health,
-                gameRoom._player1Utilities.health
-              );
           }
+
+          gameRoom._player1Utilities.health -=
+            result?.defendingCardsPlayerDamage;
+          gameRoom._player2Utilities.health -=
+            result?.attackingCardsPlayerDamage;
+
+          result.attackingCard = attackingCard;
+          result.defendingCard = attackedCard;
+
+          console.log("Should send result");
+
+          io.sockets.sockets
+            .get(gameRoom._player1Utilities.socketId)
+            ?.emit(
+              "playerAttacks",
+              result,
+              gameRoom._player1Utilities.health,
+              gameRoom._player2Utilities.health
+            );
+
+          io.sockets.sockets
+            .get(gameRoom._player2Utilities.socketId)
+            ?.emit(
+              "attackResult",
+              result,
+              gameRoom._player2Utilities.health,
+              gameRoom._player1Utilities.health
+            );
         }
         console.log("player1 Field", gameRoom._player1Utilities.playerField);
         console.log("player2 Field", gameRoom._player2Utilities.playerField);
