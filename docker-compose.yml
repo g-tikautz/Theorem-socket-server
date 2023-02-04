@@ -1,0 +1,12 @@
+version: '3.7'
+
+services:
+  main:
+    container_name: theorem-socket-server
+    build:
+      context: .
+      target: production
+    ports:
+      - 4000:4000
+    env_file:
+      - .env
