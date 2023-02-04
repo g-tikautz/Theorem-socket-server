@@ -48,6 +48,8 @@ let gameRoomIDs: string[] = [];
 
 let freeGameRooms: string[] = [];
 
+console.log(process.env.FRONTEND_SERVERS?.split(" "));
+
 function generateGameRoomID(): string {
   let id = "";
   const possible =
@@ -437,7 +439,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
           );
 
           if (!attackingCard) {
-            throw new Error("Attackingcard not found");
+            console.error("Attacking card not found");
           }
 
           //get attacked card
@@ -446,14 +448,14 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
           );
 
           if (!attackedCard) {
-            throw new Error("Attackedcard not found");
+            console.error("Attacked card not found");
           }
 
           // if both cards die
           if (attackedCard && attackingCard) {
             result = calculateFight(attackingCard, attackedCard);
           } else {
-            throw new Error("Card not found");
+            throw new Error("Both cards must be defined");
           }
           //happens if the attacking card and defendingCard dies
           if (result?.attackingCardDies && result?.defendingCardDies) {
