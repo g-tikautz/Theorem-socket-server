@@ -74,7 +74,7 @@ const io: Server = new Server<
   SocketData
 >(server, {
   cors: {
-    origin: process.env.FRONTEND_SERVER,
+    origin: process.env.FRONTEND_SERVERS?.split(" "),
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -231,18 +231,16 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
         gameRoom._player1Utilities.health -= mana;
         gameRoom._player1Utilities.mana += mana;
         gameRoom._player1Utilities.manaConverted = gameRoom.turn + mana;
-        io.sockets.sockets.get(gameRoom._player2Utilities.socketId)?.emit(
-          "enemyConvertMana",
-          mana
-        );
+        io.sockets.sockets
+          .get(gameRoom._player2Utilities.socketId)
+          ?.emit("enemyConvertMana", mana);
       } else {
         gameRoom._player2Utilities.health -= mana;
         gameRoom._player2Utilities.mana += mana;
         gameRoom._player2Utilities.manaConverted = gameRoom.turn + mana;
-        io.sockets.sockets.get(gameRoom._player1Utilities.socketId)?.emit(
-          "enemyConvertMana",
-          mana
-        );
+        io.sockets.sockets
+          .get(gameRoom._player1Utilities.socketId)
+          ?.emit("enemyConvertMana", mana);
       }
     });
 
@@ -814,7 +812,7 @@ async function getDeck(id: string): Promise<CardDTO[]> {
     card.effect.forEach((effect) => {
       standardEffects.push(
         StandardEffects[
-        effect.toLocaleUpperCase() as keyof typeof StandardEffects
+          effect.toLocaleUpperCase() as keyof typeof StandardEffects
         ]
       );
     });
