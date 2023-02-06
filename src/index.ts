@@ -429,13 +429,10 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
           console.error("Game room not found");
           return;
         }
-        let attackedCard;
-        let attackingCard;
-        let result;
         //player 1 attacks
         if (gameRoom._player1Utilities.socketId == socket.id) {
 
-          let { attackingPlayer, defendingPlayer, status } = processResult(gameRoom._player1Utilities, gameRoom._player2Utilities, attackingCardKey, attackedCardKey);
+          let { result, attackingPlayer, defendingPlayer, status } = processResult(gameRoom._player1Utilities, gameRoom._player2Utilities, attackingCardKey, attackedCardKey);
 
           if (status == "error") {
             console.error("Error processing result");
@@ -464,10 +461,12 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
               gameRoom._player1Utilities.health,
               gameRoom._player2Utilities.health
             );
+          console.log("result", result);
+
 
           // if player 2 is the attacker
         } else {
-          let { attackingPlayer, defendingPlayer, status } = processResult(gameRoom._player2Utilities, gameRoom._player1Utilities, attackingCardKey, attackedCardKey);
+          let { result, attackingPlayer, defendingPlayer, status } = processResult(gameRoom._player2Utilities, gameRoom._player1Utilities, attackingCardKey, attackedCardKey);
 
           if (status == "error") {
             console.error("Error processing result");
@@ -496,11 +495,12 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
               gameRoom._player2Utilities.health,
               gameRoom._player1Utilities.health
             );
+          console.log("result", result);
+
         }
 
         console.log("player1 Field", gameRoom._player1Utilities.playerField);
         console.log("player2 Field", gameRoom._player2Utilities.playerField);
-        console.log("result", result);
         console.log("====================================");
 
         if (gameRoom._player1Utilities.health <= 0) {

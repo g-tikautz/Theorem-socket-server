@@ -29,6 +29,7 @@ export function processResult(attackingPlayer: Player, defendingPlayer: Player, 
     } else {
         console.error("Returning");
         return {
+            result: null,
             attackingPlayer: attackingPlayer,
             defendingPlayer: defendingPlayer,
             status: "error",
@@ -118,6 +119,7 @@ export function processResult(attackingPlayer: Player, defendingPlayer: Player, 
     console.log("Should send result");
 
     return {
+        result: result,
         attackingPlayer: attackingPlayer,
         defendingPlayer: defendingPlayer,
         status: "success",
