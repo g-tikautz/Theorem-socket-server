@@ -90,11 +90,13 @@ server.listen(4000, () => {
 let roomId: string | string[] | undefined = undefined;
 let isPrivate: string | string[] | undefined = undefined;
 let playerId: string = "";
+let spectator: string = "false";
 
 io.use((socket, next) => {
   roomId = socket.handshake.query.roomId;
   isPrivate = socket.handshake.query.isPrivate;
   playerId = socket.handshake.query.playerId as string;
+  spectator = socket.handshake.query.spectator as string;
 
   if (socket.handshake.query.token === "WEB") {
     next();
@@ -108,15 +110,31 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     throw err;
   }
   io.on("connection", async (socket: Socket) => {
-    if (roomId && roomId != "undefined") {
-      await joinGameRoom(socket, roomId as string);
+    if (spectator == "true") {
+      console.log("spectator connected");
+      spectator = "false";
     } else {
-      if (isPrivate && isPrivate != "undefined") {
-        createPrivateRoom(socket);
+      console.log("player connected");
+      if (roomId && roomId != "undefined") {
+        await joinGameRoom(socket, roomId as string);
       } else {
-        await normalSearch(socket);
+        if (isPrivate && isPrivate != "undefined") {
+          await createPrivateRoom(socket);
+        } else {
+          await normalSearch(socket);
+        }
       }
     }
+
+    socket.on("runningGames", () => {
+      let runningGames: GameRoom[] = [];
+      gameRooms.forEach((gameRoom) => {
+        if (gameRoom._status == GameStatus.PLAYING) {
+          runningGames.push(gameRoom);
+        }
+      });
+      socket.emit("runningGames", runningGames);
+    });
 
     socket.on("changeTurn", (roomId: string) => {
       let gameRoom = gameRooms.get(roomId);
@@ -279,8 +297,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       }
     });
 
-    socket.on(
-      "playerPlaysCard",
+    socket.on("playerPlaysCard",
       (roomId: string, cardKey, playedStance: "open" | "hidden") => {
         const gameRoom = gameRooms.get(roomId);
         if (gameRoom) {
@@ -326,8 +343,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       }
     );
 
-    socket.on(
-      "changeStance",
+    socket.on("changeStance",
       (roomId: string, stance: "attack" | "defense", cardKey: string) => {
         const gameRoom = gameRooms.get(roomId);
         if (!gameRoom) {
@@ -421,8 +437,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       }
     });
 
-    socket.on(
-      "playerAttacks",
+    socket.on("playerAttacks",
       (roomId, attackedCardKey: string, attackingCardKey: string) => {
         const gameRoom: GameRoom | undefined = gameRooms.get(roomId);
         if (!gameRoom) {
@@ -680,7 +695,7 @@ async function joinGameRoom(socket: Socket, roomId: string) {
   }
 }
 
-function createPrivateRoom(socket: Socket) {
+async function createPrivateRoom(socket: Socket) {
   let gameRoom = new GameRoom();
   gameRoom.gameroomId = generateGameRoomID();
   gameRoom._player1Utilities.socketId = socket.id;
@@ -689,4 +704,9 @@ function createPrivateRoom(socket: Socket) {
   socket.emit("gameRoomID", gameRoom.gameroomId);
 }
 
-
+async function joinGameRoomAsSpectator(socket: Socket, roomId: string) {
+  let gameRoom = gameRooms.get(roomId);
+  if (gameRoom) {
+    //gameRoom._spectatorUtilities.socketId = socket.id;
+  }
+}
