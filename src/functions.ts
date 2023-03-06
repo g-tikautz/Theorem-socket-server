@@ -113,6 +113,8 @@ export function processResult(attackingPlayer: Player, defendingPlayer: Player, 
     defendingPlayer.health -=
         result?.defendingCardsPlayerDamage;
 
+    attackedCard.playedStance = "open";
+
     result.attackingCard = attackingCard;
     result.defendingCard = attackedCard;
 
