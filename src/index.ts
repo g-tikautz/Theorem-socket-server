@@ -14,6 +14,7 @@ import process from "process";
 import dotenv from "dotenv";
 import { StandardEffects } from "./model/Enum";
 import { Result } from "./model/Result";
+import { processResult } from "./functions";
 dotenv.config();
 
 // Server messages
@@ -89,11 +90,13 @@ server.listen(4000, () => {
 let roomId: string | string[] | undefined = undefined;
 let isPrivate: string | string[] | undefined = undefined;
 let playerId: string = "";
+let spectator: string = "false";
 
 io.use((socket, next) => {
   roomId = socket.handshake.query.roomId;
   isPrivate = socket.handshake.query.isPrivate;
   playerId = socket.handshake.query.playerId as string;
+  spectator = socket.handshake.query.spectator as string;
 
   if (socket.handshake.query.token === "WEB") {
     next();
@@ -107,15 +110,31 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
     throw err;
   }
   io.on("connection", async (socket: Socket) => {
-    if (roomId && roomId != "undefined") {
-      await joinGameRoom(socket, roomId as string);
+    if (spectator == "true") {
+      console.log("spectator connected");
+      spectator = "false";
     } else {
-      if (isPrivate && isPrivate != "undefined") {
-        createPrivateRoom(socket);
+      console.log("player connected");
+      if (roomId && roomId != "undefined") {
+        await joinGameRoom(socket, roomId as string);
       } else {
-        await normalSearch(socket);
+        if (isPrivate && isPrivate != "undefined") {
+          await createPrivateRoom(socket);
+        } else {
+          await normalSearch(socket);
+        }
       }
     }
+
+    socket.on("runningGames", () => {
+      let runningGames: GameRoom[] = [];
+      gameRooms.forEach((gameRoom) => {
+        if (gameRoom._status == GameStatus.PLAYING) {
+          runningGames.push(gameRoom);
+        }
+      });
+      socket.emit("runningGames", runningGames);
+    });
 
     socket.on("changeTurn", (roomId: string) => {
       let gameRoom = gameRooms.get(roomId);
@@ -278,8 +297,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       }
     });
 
-    socket.on(
-      "playerPlaysCard",
+    socket.on("playerPlaysCard",
       (roomId: string, cardKey, playedStance: "open" | "hidden") => {
         const gameRoom = gameRooms.get(roomId);
         if (gameRoom) {
@@ -325,8 +343,7 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       }
     );
 
-    socket.on(
-      "changeStance",
+    socket.on("changeStance",
       (roomId: string, stance: "attack" | "defense", cardKey: string) => {
         const gameRoom = gameRooms.get(roomId);
         if (!gameRoom) {
@@ -420,123 +437,25 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
       }
     });
 
-    socket.on(
-      "playerAttacks",
+    socket.on("playerAttacks",
       (roomId, attackedCardKey: string, attackingCardKey: string) => {
         const gameRoom: GameRoom | undefined = gameRooms.get(roomId);
         if (!gameRoom) {
           console.error("Game room not found");
           return;
         }
-        let attackedCard;
-        let attackingCard;
-        let result;
         //player 1 attacks
         if (gameRoom._player1Utilities.socketId == socket.id) {
-          //get attacking card
-          attackingCard = gameRoom._player1Utilities.playerField.find(
-            (card) => card.key == attackingCardKey
-          );
 
-          if (!attackingCard) {
-            console.error("Attacking card not found");
+          let { result, attackingPlayer, defendingPlayer, status } = processResult(gameRoom._player1Utilities, gameRoom._player2Utilities, attackingCardKey, attackedCardKey);
+
+          if (status == "error") {
+            console.error("Error processing result");
+            return;
           }
 
-          //get attacked card
-          attackedCard = gameRoom._player2Utilities.playerField.find(
-            (card) => card.key == attackedCardKey
-          );
-
-          if (!attackedCard) {
-            console.error("Attacked card not found");
-          }
-
-          // if both cards die
-          if (attackedCard && attackingCard) {
-            result = calculateFight(attackingCard, attackedCard);
-          } else {
-            throw new Error("Both cards must be defined");
-          }
-          //happens if the attacking card and defendingCard dies
-          if (result?.attackingCardDies && result?.defendingCardDies) {
-            gameRoom._player1Utilities.playerField =
-              gameRoom._player1Utilities.playerField.filter(
-                (card) => card.key != attackingCardKey
-              );
-            gameRoom._player2Utilities.playerField =
-              gameRoom._player2Utilities.playerField.filter(
-                (card) => card.key != attackedCardKey
-              );
-          } else {
-            // happens if the attacking card dies
-            if (result?.attackingCardDies && !result?.defendingCardDies) {
-              gameRoom._player1Utilities.playerField =
-                gameRoom._player1Utilities.playerField.filter(
-                  (card) => card.key != attackingCardKey
-                );
-
-              gameRoom._player2Utilities.playerField
-                .find((card) => card.key == attackedCardKey)!
-                .cardTakesDamage(result.defendingCardDamage);
-
-              gameRoom._player2Utilities.playerField
-                .find((card) => card.key == attackedCardKey)!
-                .removeEffects(result.effectsUsedByDefendingCard);
-
-              // happens if the defending card dies
-            } else if (!result.attackingCardDies && result.defendingCardDies) {
-              gameRoom._player2Utilities.playerField =
-                gameRoom._player2Utilities.playerField.filter(
-                  (card) => card.key != attackedCardKey
-                );
-
-              gameRoom._player1Utilities.playerField
-                .find((card) => card.key == attackingCardKey)!
-                .cardTakesDamage(result.attackingCardDamage);
-
-              if (
-                result.effectsHittingAttackingCard.includes(
-                  StandardEffects.CAGE
-                )
-              ) {
-                gameRoom._player1Utilities.playerField
-                  .find((card) => card.key == attackingCardKey)!
-                  .cardTrapped();
-              }
-
-              // happens if both cards survive for whatever dumb reason
-            } else {
-              gameRoom._player2Utilities.playerField
-                .find((card) => card.key == attackedCardKey)!
-                .cardTakesDamage(result.defendingCardDamage);
-
-              gameRoom._player1Utilities.playerField
-                .find((card) => card.key == attackingCardKey)!
-                .cardTakesDamage(result.attackingCardDamage);
-
-              if (
-                result?.effectsHittingAttackingCard.includes(
-                  StandardEffects.CAGE
-                )
-              ) {
-                gameRoom._player1Utilities.playerField
-                  .find((card) => card.key == attackingCardKey)!
-                  .cardTrapped();
-              }
-
-              gameRoom._player2Utilities.playerField
-                .find((card) => card.key == attackedCardKey)!
-                .removeEffects(result.effectsUsedByDefendingCard);
-            }
-          }
-
-          gameRoom._player1Utilities.health -=
-            result?.attackingCardsPlayerDamage;
-          gameRoom._player2Utilities.health -=
-            result?.defendingCardsPlayerDamage;
-
-          result.attackingCard = attackingCard;
-          result.defendingCard = attackedCard;
+          gameRoom._player1Utilities = attackingPlayer;
+          gameRoom._player2Utilities = defendingPlayer;
 
           console.log("Should send result");
 
@@ -557,104 +476,20 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
               gameRoom._player1Utilities.health,
               gameRoom._player2Utilities.health
             );
+          console.log("result", result);
+
 
           // if player 2 is the attacker
         } else {
-          attackingCard = gameRoom._player2Utilities.playerField.find(
-            (card) => card.key == attackingCardKey
-          );
+          let { result, attackingPlayer, defendingPlayer, status } = processResult(gameRoom._player2Utilities, gameRoom._player1Utilities, attackingCardKey, attackedCardKey);
 
-          attackedCard = gameRoom._player1Utilities.playerField.find(
-            (card) => card.key == attackedCardKey
-          );
-
-          if (attackedCard && attackingCard) {
-            result = calculateFight(attackingCard, attackedCard);
-          } else {
-            throw new Error("Card not found");
+          if (status == "error") {
+            console.error("Error processing result");
+            return;
           }
 
-          //happens if both cards die
-          if (result?.attackingCardDies && result?.defendingCardDies) {
-            gameRoom._player2Utilities.playerField =
-              gameRoom._player2Utilities.playerField.filter(
-                (card) => card.key != attackingCardKey
-              );
-
-            gameRoom._player1Utilities.playerField =
-              gameRoom._player1Utilities.playerField.filter(
-                (card) => card.key != attackedCardKey
-              );
-          } else {
-            // happens if the attacking card dies
-            if (result?.attackingCardDies && !result?.defendingCardDies) {
-              gameRoom._player2Utilities.playerField =
-                gameRoom._player2Utilities.playerField.filter(
-                  (card) => card.key != attackingCardKey
-                );
-
-              gameRoom._player1Utilities.playerField
-                .find((card) => card.key == attackedCardKey)!
-                .cardTakesDamage(result?.defendingCardDamage!);
-
-              gameRoom._player1Utilities.playerField
-                .find((card) => card.key == attackedCardKey)!
-                .removeEffects(result?.effectsUsedByDefendingCard);
-              // happens if the defending card dies
-            } else if (
-              !result?.attackingCardDies &&
-              result?.defendingCardDies
-            ) {
-              gameRoom._player1Utilities.playerField =
-                gameRoom._player1Utilities.playerField.filter(
-                  (card) => card.key != attackedCardKey
-                );
-
-              gameRoom._player2Utilities.playerField
-                .find((card) => card.key == attackingCardKey)!
-                .cardTakesDamage(result?.attackingCardDamage!);
-
-              if (
-                result?.effectsHittingAttackingCard.includes(
-                  StandardEffects.CAGE
-                )
-              ) {
-                gameRoom._player2Utilities.playerField
-                  .find((card) => card.key == attackingCardKey)!
-                  .cardTrapped();
-              }
-            } else {
-              // happens if both cards survive for whatever dumb reason
-              gameRoom._player1Utilities.playerField
-                .find((card) => card.key == attackedCardKey)!
-                .cardTakesDamage(result?.defendingCardDamage!);
-              gameRoom._player2Utilities.playerField
-                .find((card) => card.key == attackingCardKey)!
-                .cardTakesDamage(result?.attackingCardDamage!);
-
-              if (
-                result?.effectsHittingAttackingCard.includes(
-                  StandardEffects.CAGE
-                )
-              ) {
-                gameRoom._player2Utilities.playerField
-                  .find((card) => card.key == attackingCardKey)!
-                  .cardTrapped();
-              }
-
-              gameRoom._player1Utilities.playerField
-                .find((card) => card.key == attackedCardKey)!
-                .removeEffects(result?.effectsUsedByDefendingCard);
-            }
-          }
-
-          gameRoom._player1Utilities.health -=
-            result?.defendingCardsPlayerDamage;
-          gameRoom._player2Utilities.health -=
-            result?.attackingCardsPlayerDamage;
-
-          result.attackingCard = attackingCard;
-          result.defendingCard = attackedCard;
+          gameRoom._player2Utilities = attackingPlayer;
+          gameRoom._player1Utilities = defendingPlayer;
 
           console.log("Should send result");
 
@@ -675,10 +510,13 @@ mongoose.connect(process.env.DB_CONN_STRING as string, (err: any) => {
               gameRoom._player2Utilities.health,
               gameRoom._player1Utilities.health
             );
+          console.log("result", result);
+
         }
+
         console.log("player1 Field", gameRoom._player1Utilities.playerField);
         console.log("player2 Field", gameRoom._player2Utilities.playerField);
-        console.log("result", result);
+        console.log("====================================");
 
         if (gameRoom._player1Utilities.health <= 0) {
           io.sockets.sockets
@@ -814,7 +652,7 @@ async function getDeck(id: string): Promise<CardDTO[]> {
     card.effect.forEach((effect) => {
       standardEffects.push(
         StandardEffects[
-          effect.toLocaleUpperCase() as keyof typeof StandardEffects
+        effect.toLocaleUpperCase() as keyof typeof StandardEffects
         ]
       );
     });
@@ -857,7 +695,7 @@ async function joinGameRoom(socket: Socket, roomId: string) {
   }
 }
 
-function createPrivateRoom(socket: Socket) {
+async function createPrivateRoom(socket: Socket) {
   let gameRoom = new GameRoom();
   gameRoom.gameroomId = generateGameRoomID();
   gameRoom._player1Utilities.socketId = socket.id;
@@ -866,85 +704,9 @@ function createPrivateRoom(socket: Socket) {
   socket.emit("gameRoomID", gameRoom.gameroomId);
 }
 
-function calculateFight(
-  attackingCard: CardDTO,
-  defendingCard: CardDTO
-): Result {
-  const result: Result = new Result();
-
-  result.attackingCardKey = attackingCard.key;
-  result.defendingCardKey = defendingCard.key;
-
-  if (defendingCard.hasEffect(StandardEffects.CAGE)) {
-    result.defendingCardDies = true;
-
-    if (attackingCard.hasEffect(StandardEffects.PIERCE)) {
-      result.defendingCardsPlayerDamage = attackingCard.getFightValue();
-    }
-
-    if (attackingCard.hasEffect(StandardEffects.BOUNTY)) {
-      result.attackingCardsPlayerDamage = -1;
-    }
-    result.effectsHittingAttackingCard.push(StandardEffects.CAGE);
-  } else if (defendingCard.hasEffect(StandardEffects.SHIELD)) {
-    if (attackingCard.getFightValue() >= defendingCard.getFightValue()) {
-      //attacking card is stronger or equal strong then no card dies and attacking card gets damage
-      result.attackingCardDamage = defendingCard.getFightValue();
-    } else {
-      //attacking card is weaker - attacking card dies
-      result.attackingCardDies = true;
-    }
-    result.effectsUsedByDefendingCard.push(StandardEffects.SHIELD);
-  } else if (
-    attackingCard.getFightValue() == defendingCard.getFightValue() &&
-    attackingCard.getFightValue() != 0
-  ) {
-    //The two cards are equally strong
-    //When the defending card was in hidden defense it loses
-    if (defendingCard.playedStance == "hidden") {
-      result.defendingCardDies = true;
-
-      if (attackingCard.hasEffect(StandardEffects.BOUNTY)) {
-        result.attackingCardsPlayerDamage = -1;
-      }
-    }
-    //Both cards die
-    else {
-      result.defendingCardDies = true;
-      result.attackingCardDies = true;
-
-      if (attackingCard.hasEffect(StandardEffects.BOUNTY)) {
-        result.attackingCardsPlayerDamage = -1;
-      }
-    }
-  } else if (attackingCard.getFightValue() > defendingCard.getFightValue()) {
-    //attacking card wins
-    result.defendingCardDies = true;
-    result.attackingCardDamage = defendingCard.getFightValue();
-    if (
-      !(defendingCard.stance === "defense") ||
-      attackingCard.hasEffect(StandardEffects.PIERCE)
-    ) {
-      let diff = attackingCard.getFightValue() - defendingCard.getFightValue();
-      result.defendingCardsPlayerDamage = diff;
-    }
-
-    if (attackingCard.hasEffect(StandardEffects.BOUNTY)) {
-      result.attackingCardsPlayerDamage = -1;
-    }
-  } else if (attackingCard.getFightValue() < defendingCard.getFightValue()) {
-    result.attackingCardDies = true;
-    result.defendingCardDamage = attackingCard.getFightValue();
-
-    if (defendingCard.hasEffect(StandardEffects.PIERCE)) {
-      let diff = defendingCard.getFightValue() - attackingCard.getFightValue();
-      result.attackingCardsPlayerDamage = diff;
-    }
-
-    if (defendingCard.hasEffect(StandardEffects.BOUNTY)) {
-      result.defendingCardsPlayerDamage = -1;
-    }
+async function joinGameRoomAsSpectator(socket: Socket, roomId: string) {
+  let gameRoom = gameRooms.get(roomId);
+  if (gameRoom) {
+    //gameRoom._spectatorUtilities.socketId = socket.id;
   }
-
-  return result;
 }
